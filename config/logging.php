@@ -58,6 +58,16 @@ return [
             'ignore_exceptions' => false,
         ],
 
+        // Use in production: LOG_CHANNEL=json_stderr
+        // Outputs structured JSON to stderr for log aggregators.
+        'json_stderr' => [
+            'driver'       => 'monolog',
+            'level'        => env('LOG_LEVEL', 'error'),
+            'handler'      => \Monolog\Handler\StreamHandler::class,
+            'handler_with' => ['stream' => 'php://stderr'],
+            'formatter'    => \Monolog\Formatter\JsonFormatter::class,
+        ],
+
         'single' => [
             'driver' => 'single',
             'path' => storage_path('logs/laravel.log'),
