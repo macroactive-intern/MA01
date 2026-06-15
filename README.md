@@ -1,59 +1,210 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Exercise Library API
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A JSON REST API for managing a shared exercise library. Authenticated users can create, browse, search, update, and soft-delete exercises. Built with Laravel 12 and Sanctum.
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Requirements
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+| Dependency | Version |
+|---|---|
+| PHP | ^8.2 |
+| Composer | ^2.0 |
+| SQLite | any (local/test only) |
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+> **Production:** SQLite is not suitable for production. Use MySQL 8+ or PostgreSQL 14+.
 
-## Learning Laravel
+---
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+## Local setup
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+```bash
+# 1. Clone the repository
+git clone https://github.com/macroactive-intern/MA01.git
+cd MA01/exercise-library-api
 
-## Laravel Sponsors
+# 2. Install PHP dependencies
+composer install
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+# 3. Create and configure the environment file
+cp .env.example .env
+php artisan key:generate
 
-### Premium Partners
+# 4. Run database migrations
+php artisan migrate
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+# 5. Start the development server
+php artisan serve
+```
 
-## Contributing
+The API will be available at `http://127.0.0.1:8000`.
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+---
 
-## Code of Conduct
+## Running the test suite
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+```bash
+php artisan test
+```
 
-## Security Vulnerabilities
+Tests use an in-memory SQLite database configured in `phpunit.xml`. No additional setup is required.
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+Expected output: **27 tests, 72 assertions, 0 failures.**
 
-## License
+---
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+## Authentication
+
+All endpoints require a Sanctum API token passed as a Bearer token:
+
+```
+Authorization: Bearer <token>
+```
+
+Token issuance is outside the scope of this API. To generate a token for local testing:
+
+```bash
+php artisan tinker
+```
+
+```php
+$user = \App\Models\User::factory()->create();
+echo $user->createToken('local')->plainTextToken;
+```
+
+Copy the printed token and include it in your requests.
+
+---
+
+## API endpoints
+
+All endpoints are prefixed with `/api`.
+
+### List exercises
+
+```
+GET /api/exercises
+```
+
+Returns a paginated list of exercises (20 per page), ordered alphabetically by name.
+
+**Query parameters:**
+
+| Parameter | Type | Description |
+|---|---|---|
+| `search` | string | Filters by name, muscle group, or equipment type (optional) |
+| `page` | integer | Page number (optional, default 1) |
+
+**Response shape:**
+
+```json
+{
+  "data": [
+    {
+      "id": 1,
+      "name": "Barbell Squat",
+      "slug": "barbell-squat",
+      "muscle_group": "Quadriceps",
+      "equipment_type": "Barbell",
+      "video_url": null,
+      "description": null,
+      "created_at": "2026-06-15T02:00:00.000000Z",
+      "updated_at": "2026-06-15T02:00:00.000000Z"
+    }
+  ],
+  "links": { "first": "...", "last": "...", "prev": null, "next": "..." },
+  "meta": { "current_page": 1, "per_page": 20, "total": 1, ... }
+}
+```
+
+### Get one exercise
+
+```
+GET /api/exercises/{id}
+```
+
+Returns a single exercise. Returns `404` if the exercise does not exist or has been deleted.
+
+### Create an exercise
+
+```
+POST /api/exercises
+Content-Type: application/json
+
+{
+  "name": "Barbell Squat",
+  "muscle_group": "Quadriceps",
+  "equipment_type": "Barbell",
+  "video_url": "https://example.com/squat",
+  "description": "A compound lower-body exercise."
+}
+```
+
+Returns `201` with the created exercise. The `slug` field is generated automatically from the name — do not send it.
+
+### Update an exercise
+
+```
+PUT /api/exercises/{id}
+Content-Type: application/json
+
+{
+  "name": "Barbell Squat",
+  "muscle_group": "Quadriceps"
+}
+```
+
+All required fields must be included. Returns `200` with the updated exercise. The slug is immutable and will not change even if the name changes.
+
+### Delete an exercise
+
+```
+DELETE /api/exercises/{id}
+```
+
+Returns `204` with an empty body. The exercise is soft-deleted and will no longer appear in any response.
+
+---
+
+## Validation rules
+
+| Field | Rules |
+|---|---|
+| `name` | Required, string, max 120 characters, case-insensitively unique |
+| `muscle_group` | Required, string, max 60 characters |
+| `equipment_type` | Optional, string, max 60 characters |
+| `video_url` | Optional, valid URL, max 255 characters |
+| `description` | Optional, string, max 5000 characters |
+
+Validation failures return `422` with field-level error detail:
+
+```json
+{
+  "message": "The name has already been taken.",
+  "errors": {
+    "name": ["The name has already been taken."]
+  }
+}
+```
+
+---
+
+## Environment variables
+
+| Variable | Required | Description |
+|---|---|---|
+| `APP_KEY` | Yes | Generated by `php artisan key:generate`. Must not be blank. |
+| `APP_ENV` | Yes | `local` for development, `production` for production. |
+| `APP_DEBUG` | Yes | Must be `false` in production — exposes stack traces if true. |
+| `DB_CONNECTION` | Yes | `sqlite` for local. Use `mysql` or `pgsql` in production. |
+| `CORS_ALLOWED_ORIGINS` | Production | Comma-separated list of allowed origins. Must not be `*`. |
+| `LOG_LEVEL` | No | Default `debug`. Set to `error` in production. |
+
+---
+
+## Key design decisions
+
+- **Slugs** are generated from the exercise name on creation and are immutable. They exist for mobile deep-linking.
+- **Soft deletes** are used — deleted exercises remain in the database with a `deleted_at` timestamp but are excluded from all API responses.
+- **PATCH is not registered** — only `PUT` is available for updates, which requires all required fields.
+- **Any authenticated user** can create, update, and delete exercises. No role-based permissions are implemented.
